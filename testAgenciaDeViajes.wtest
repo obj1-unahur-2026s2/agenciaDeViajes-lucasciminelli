@@ -1,0 +1,178 @@
+import agenciaDeViajes.*
+
+describe "Pruebas del Sistema de Packs de Viajes" {
+  // --- BENEFICIOS ---
+  const traslado = new BeneficiosOpcionales(
+    tipo = "Traslado Privado",
+    costo = 1000,
+    estaVigente = true
+  )
+  const seguro = new BeneficiosOpcionales(
+    tipo = "Seguro Adicional",
+    costo = 500,
+    estaVigente = true
+  )
+  const vip = new BeneficiosOpcionales(
+    tipo = "Sala VIP",
+    costo = 1500,
+    estaVigente = false
+  )
+  // --- COORDINADORES ---
+  const guiaMotivado = new Coordinador(
+    cantidadDeViajesRealizados = 25,
+    aniosDeExperiencia = 5,
+    estaMotivado = true,
+    rol = guia
+  )
+  const guiaDesmotivado = new Coordinador(
+    cantidadDeViajesRealizados = 25,
+    aniosDeExperiencia = 5,
+    estaMotivado = false,
+    rol = guia
+  )
+  const asistenteExperto = new Coordinador(
+    cantidadDeViajesRealizados = 22,
+    aniosDeExperiencia = 4,
+    rol = asistenteLogistico,
+    estaMotivado = true
+  )
+  const asistenteNovato = new Coordinador(
+    cantidadDeViajesRealizados = 30,
+    aniosDeExperiencia = 2,
+    rol = asistenteLogistico,
+    estaMotivado = true
+  )
+  const acompanianteCalificado = new Coordinador(
+    cantidadDeViajesRealizados = 21,
+    aniosDeExperiencia = 1,
+    rol = acompaniante,
+    estaMotivado = true
+  )
+  
+  // --- REQUERIMIENTO 1: CALCULAR VALOR FINAL DE UN PACK ---
+  test "Un pack nacional sin beneficios devuelve solo su precio base" {
+    const packNacional = new PackNacional(
+      duracionEnDias = 7,
+      precioBase = 10000,
+      provinciaDestino = "Mendoza",
+      coordinador = guiaMotivado
+    )
+    
+    assert.equals(10000, packNacional.precioFinal())
+  }
+  
+  test "Un pack nacional suma correctamente los beneficios vigentes ( e ignora los no vigentes)" {
+    const packNacional = new PackNacional(
+      duracionEnDias = 7,
+      precioBase = 10000,
+      provinciaDestino = "Córdoba",
+      coordinador = guiaMotivado,
+      beneficios = #{traslado, seguro, vip} // vip está vigente = false (1500)
+    )
+    
+    // Base (10000) + Traslado (1000) + Seguro (500) = 11500
+    assert.equals(11500, packNacional.precioFinal())
+  }
+  
+  test "Un pack internacional calcula el 20% de recargo sobre la suma con beneficios" {
+    const packInter = new PackInternacional(
+      duracionEnDias = 15,
+      precioBase = 20000,
+      paisDestino = "Brasil",
+      cantidadEscalas = 1,
+      esLugarDeInteres = true,
+      coordinador = guiaMotivado,
+      beneficios = #{traslado} // Costo: 1000
+    )
+    
+    // Subtotal: 21000 * 1.20 = 25200
+    assert.equals(25200, packInter.precioFinal())
+  }
+  
+  // --- REQUERIMIENTO 2: COORDINADORES ALTAMENTE CALIFICADOS ---
+  test "Un guía con más de 20 viajes y motivado es altamente calificado" {
+    assert.that(guiaMotivado.altamenteCalificado())
+  }
+  
+  test "Un guía con más de 20 viajes pero NO motivado NO es altamente calificado" {
+    assert.notThat(guiaDesmotivado.altamenteCalificado())
+  }
+  
+  test "Un asistente logístico necesita al menos 3 años de experiencia para ser calificado" {
+    assert.that(asistenteExperto.altamenteCalificado())
+    assert.notThat(asistenteNovato.altamenteCalificado())
+  }
+  
+  test "Un acompañante con más de 20 viajes siempre es calificado" {
+    assert.that(acompanianteCalificado.altamenteCalificado())
+  }
+  
+  test "Cambiar a un rol inválido lanza una excepción" {
+    assert.throwsExceptionWithMessage(
+      "El rol especificado es inválido",
+      { guiaMotivado.cambiarDeRol("RolInexistente") }
+    )
+  }
+  
+  // --- REQUERIMIENTO 3: PACKS PREMIUM ---
+  test "Un pack nacional es premium si dura > 10 días y su coordinador es altamente calificado" {
+    const packNacionalPremium = new PackNacional(
+      duracionEnDias = 12,
+      precioBase = 15000,
+      provinciaDestino = "Salta",
+      coordinador = guiaMotivado
+    )
+    
+    assert.that(packNacionalPremium.esPremium())
+  }
+  
+  test "Un pack internacional es premium si es de interés, dura > 20 días y no tiene escalas" {
+    const packInterPremium = new PackInternacional(
+      duracionEnDias = 25,
+      precioBase = 50000,
+      paisDestino = "Japón",
+      cantidadEscalas = 0,
+      esLugarDeInteres = true,
+      coordinador = guiaMotivado
+    )
+    
+    assert.that(packInterPremium.esPremium())
+  }
+  
+  // --- REQUERIMIENTO 4: PACKS PROVINCIALES ---
+  test "Un pack provincial premium aplica recargo del 5% adicional" {
+    const beneficioVigente1 = new BeneficiosOpcionales(
+      tipo = "Acceso a salas VIP",
+      costo = 100,
+      estaVigente = true
+    )
+    const beneficioVigente2 = new BeneficiosOpcionales(
+      tipo = "Traslados privados",
+      costo = 100,
+      estaVigente = true
+    )
+    const beneficioVigente3 = new BeneficiosOpcionales(
+      tipo = "Seguros adicionales",
+      costo = 100,
+      estaVigente = true
+    )
+    
+    const packProvincial = new PackProvincial(
+      duracionEnDias = 8,
+      precioBase = 10000,
+      provinciaDestino = "Entre Ríos",
+      cantidadDeCiudadesAvisitar = 6,
+      // > 5
+      actividadesIncluidas = #{"Rafting", "Trekking", "Tirolesa", "Excursión"},
+      // 4 actividades
+      beneficios = #{beneficioVigente1, beneficioVigente2, beneficioVigente3},
+      // 3 vigentes
+      coordinador = guiaMotivado
+    )
+    
+    // Base: 10000 + 300 = 10300
+    // Como es premium: 10300 * 1.05 = 10815
+    assert.that(packProvincial.esPremium())
+    assert.equals(10815, packProvincial.precioFinal())
+  }
+}

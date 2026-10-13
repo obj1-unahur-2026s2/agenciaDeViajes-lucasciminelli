@@ -108,10 +108,11 @@ object acompaniante {
 class BeneficiosOpcionales {
   const tipo
   const costo
+  const estaVigente
   
   method tipo() = tipo
   
   method costo() = costo
   
-  method estaVigente() = true
+  method estaVigente() = estaVigente
 }
